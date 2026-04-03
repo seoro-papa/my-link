@@ -76,11 +76,11 @@ export default function Page() {
             <DialogTrigger asChild>
               <Button 
                 variant="default" 
-                className="w-full h-14 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_8px_30px_rgb(37,99,235,0.2)] hover:scale-[1.01] transition-all duration-300 border-none group px-6 mb-2"
+                className="w-full h-14 rounded-2xl bg-primary hover:opacity-90 text-primary-foreground shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.16)] hover:scale-[1.01] transition-all duration-300 border-none group px-6 mb-2"
               >
                 <div className="flex items-center justify-between w-full">
                   <span className="font-bold tracking-tight text-base">새 링크 추가하기</span>
-                  <div className="bg-white/20 p-1.5 rounded-lg group-hover:bg-white/30 transition-colors">
+                  <div className="bg-primary-foreground/20 p-1.5 rounded-lg group-hover:bg-primary-foreground/30 transition-colors">
                     <Plus className="h-5 w-5" />
                   </div>
                 </div>
