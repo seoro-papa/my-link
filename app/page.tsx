@@ -74,9 +74,16 @@ export default function Page() {
         <div className="w-full flex flex-col gap-4">
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="w-full rounded-xl border-dashed py-6 hover:bg-slate-100 dark:hover:bg-slate-800">
-                <Plus className="mr-2 h-4 w-4" />
-                새 링크 추가하기
+              <Button 
+                variant="default" 
+                className="w-full h-14 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_8px_30px_rgb(37,99,235,0.2)] hover:scale-[1.01] transition-all duration-300 border-none group px-6 mb-2"
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span className="font-bold tracking-tight text-base">새 링크 추가하기</span>
+                  <div className="bg-white/20 p-1.5 rounded-lg group-hover:bg-white/30 transition-colors">
+                    <Plus className="h-5 w-5" />
+                  </div>
+                </div>
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
