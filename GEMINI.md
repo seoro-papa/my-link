@@ -46,6 +46,6 @@ This file serves as a guide for the Gemini CLI to understand the project structu
 
 ### Important Notes
 - **Security**: Never commit sensitive information such as Firebase API keys in `.env` files.
-- **Language**: Plans, tasks, and commit messages should be written in **Korean** (as per user preference).
+- **Language**: ALL communications, conversation responses, plans, tasks, documentation, and commit messages MUST strictly be written in **Korean** (한국어). Always reply to the user in Korean.
 - **Validation**: Always verify successful builds with `npm run build` after development.
 - **References**: Always use the `@filename` format when referring to files.
