@@ -1,10 +1,12 @@
 "use client"
 
 import { useState } from "react"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
+import * as z from "zod"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
@@ -14,6 +16,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
 import { links as initialLinks, Link as LinkType } from "@/data/links"
 import { Camera, Video, Globe, Code, Briefcase, Plus } from "lucide-react"
 import Link from "next/link"
@@ -26,35 +36,48 @@ const iconMap: Record<string, React.ElementType> = {
   Briefcase: Briefcase,
 }
 
+const formSchema = z.object({
+  title: z
+    .string()
+    .min(2, {
+      message: "제목은 최소 2글자 이상이어야 합니다.",
+    })
+    .max(20, {
+      message: "제목은 최대 20글자까지 가능합니다.",
+    }),
+  url: z.string().url({
+    message: "올바른 URL 형식을 입력해주세요. (예: https://example.com)",
+  }),
+})
+
 export default function Page() {
   const [linkList, setLinkList] = useState<LinkType[]>(initialLinks)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [newTitle, setNewTitle] = useState("")
-  const [newUrl, setNewUrl] = useState("")
 
-  const handleAddLink = (e: React.FormEvent) => {
-    e.preventDefault()
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      title: "",
+      url: "",
+    },
+  })
 
-    if (!newTitle.trim() || !newUrl.trim()) return
-
+  const onSubmit = (values: z.infer<typeof formSchema>) => {
     try {
-      // Validate URL
-      const parsedUrl = new URL(newUrl)
-      
+      const parsedUrl = new URL(values.url)
+
       const newLink: LinkType = {
         id: Date.now().toString(),
-        title: newTitle.trim(),
-        url: newUrl.trim(),
-        // Google Favicon Service
-        icon: `https://www.google.com/s2/favicons?domain=${parsedUrl.hostname}&sz=64`
+        title: values.title.trim(),
+        url: values.url.trim(),
+        icon: `https://www.google.com/s2/favicons?domain=${parsedUrl.hostname}&sz=64`,
       }
 
       setLinkList([newLink, ...linkList])
       setIsDialogOpen(false)
-      setNewTitle("")
-      setNewUrl("")
+      form.reset()
     } catch (error) {
-      alert("올바른 URL 형식을 입력해주세요. (예: https://example.com)")
+      form.setError("url", { message: "유효하지 않은 URL입니다." })
     }
   }
 
@@ -74,8 +97,8 @@ export default function Page() {
         <div className="w-full flex flex-col gap-4">
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button 
-                variant="default" 
+              <Button
+                variant="default"
                 className="w-full h-14 rounded-2xl bg-primary hover:opacity-90 text-primary-foreground shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.16)] hover:scale-[1.01] transition-all duration-300 border-none group px-6 mb-2"
               >
                 <div className="flex items-center justify-between w-full">
@@ -87,44 +110,47 @@ export default function Page() {
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
-              <form onSubmit={handleAddLink}>
-                <DialogHeader>
-                  <DialogTitle>새 링크 추가</DialogTitle>
-                  <DialogDescription>
-                    추가하고 싶은 웹사이트의 제목과 주소를 입력해주세요. 아이콘은 자동으로 가져옵니다.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="title" className="text-right">
-                      제목
-                    </Label>
-                    <Input
-                      id="title"
-                      placeholder="예: 내 기술 블로그"
-                      className="col-span-3"
-                      value={newTitle}
-                      onChange={(e) => setNewTitle(e.target.value)}
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <DialogHeader>
+                    <DialogTitle>새 링크 추가</DialogTitle>
+                    <DialogDescription>
+                      추가하고 싶은 웹사이트의 제목과 주소를 입력해주세요. 아이콘은 자동으로 가져옵니다.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="title"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>제목</FormLabel>
+                          <FormControl>
+                            <Input placeholder="예: 내 기술 블로그" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="url"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>URL</FormLabel>
+                          <FormControl>
+                            <Input placeholder="https://velog.io/@messi" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
                   </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="url" className="text-right">
-                      URL
-                    </Label>
-                    <Input
-                      id="url"
-                      type="url"
-                      placeholder="https://velog.io/@messi"
-                      className="col-span-3"
-                      value={newUrl}
-                      onChange={(e) => setNewUrl(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button type="submit">추가하기</Button>
-                </DialogFooter>
-              </form>
+                  <DialogFooter>
+                    <Button type="submit" className="w-full sm:w-auto">추가하기</Button>
+                  </DialogFooter>
+                </form>
+              </Form>
             </DialogContent>
           </Dialog>
 
@@ -133,8 +159,8 @@ export default function Page() {
             const isExternalIcon = link.icon && link.icon.startsWith("http")
 
             return (
-              <Link 
-                key={link.id} 
+              <Link
+                key={link.id}
                 href={link.url}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -143,15 +169,17 @@ export default function Page() {
                 <Card className="flex items-center p-4 hover:bg-slate-100 dark:hover:bg-slate-800 hover:scale-[1.02] transition-all cursor-pointer shadow-sm border">
                   {Icon && <Icon className="h-5 w-5 mr-4 text-primary" />}
                   {isExternalIcon && (
-                    <img 
-                      src={link.icon} 
-                      alt={`${link.title} icon`} 
+                    <img
+                      src={link.icon}
+                      alt={`${link.title} icon`}
                       className="h-5 w-5 mr-4 rounded-sm"
                     />
                   )}
                   {/* Default icon layout if none matches */}
-                  {(!Icon && !isExternalIcon) && <Globe className="h-5 w-5 mr-4 text-muted-foreground" />}
-                  
+                  {!Icon && !isExternalIcon && (
+                    <Globe className="h-5 w-5 mr-4 text-muted-foreground" />
+                  )}
+
                   <span className="font-semibold">{link.title}</span>
                 </Card>
               </Link>
