@@ -4,7 +4,6 @@ import { useEffect, useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
-import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -25,8 +24,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { links as initialLinks, Link as LinkType } from "@/data/links"
-import { Camera, Video, Globe, Code, Briefcase, Plus, Loader2 } from "lucide-react"
-import Link from "next/link"
+import { Plus, Loader2 } from "lucide-react"
 import { db } from "@/lib/firebase"
 import { 
   collection, 
@@ -39,14 +37,7 @@ import {
   writeBatch,
   doc
 } from "firebase/firestore"
-
-const iconMap: Record<string, React.ElementType> = {
-  Instagram: Camera,
-  Youtube: Video,
-  Globe: Globe,
-  Github: Code,
-  Briefcase: Briefcase,
-}
+import { LinkCard } from "@/components/link-card"
 
 const formSchema = z.object({
   title: z
@@ -78,7 +69,7 @@ export default function Page() {
 
   // Firestore 실시간 구독
   useEffect(() => {
-    const linksRef = collection(db, "user/anonymous/links")
+    const linksRef = collection(db, "users/anonymous/links")
     const q = query(linksRef, orderBy("createdAt", "desc"))
 
     const unsubscribe = onSnapshot(q, async (querySnapshot) => {
@@ -89,14 +80,12 @@ export default function Page() {
 
       // 데이터가 아예 없는 경우 초기 데이터 마이그레이션 실행
       if (links.length === 0 && querySnapshot.metadata.fromCache === false) {
-        // 비어있는지 다시 한 번 확실히 확인 (getDocs)
         const snapshot = await getDocs(linksRef)
         if (snapshot.empty) {
           console.log("초기 데이터 마이그레이션을 시작합니다...")
           const batch = writeBatch(db)
-          initialLinks.forEach((link, index) => {
+          initialLinks.forEach((link) => {
             const newDocRef = doc(linksRef)
-            // 지연 시간을 조금씩 주어 순서 보장 (createdAt 기준)
             batch.set(newDocRef, {
               title: link.title,
               url: link.url,
@@ -105,7 +94,7 @@ export default function Page() {
             })
           })
           await batch.commit()
-          return // onSnapshot이 다시 호출될 것임
+          return
         }
       }
 
@@ -122,7 +111,7 @@ export default function Page() {
       const parsedUrl = new URL(values.url)
       const icon = `https://www.google.com/s2/favicons?domain=${parsedUrl.hostname}&sz=64`
 
-      await addDoc(collection(db, "user/anonymous/links"), {
+      await addDoc(collection(db, "users/anonymous/links"), {
         title: values.title.trim(),
         url: values.url.trim(),
         icon,
@@ -133,7 +122,7 @@ export default function Page() {
       form.reset()
     } catch (error) {
       console.error("Error adding document: ", error)
-      form.setError("url", { message: "링크를 추가하는 중 요류가 발생했습니다." })
+      form.setError("url", { message: "링크를 추가하는 중 오류가 발생했습니다." })
     } finally {
       setIsSubmitting(false)
     }
@@ -239,37 +228,9 @@ export default function Page() {
               <p className="text-sm text-muted-foreground">등록된 링크가 없습니다.<br />새로운 링크를 추가해보세요!</p>
             </div>
           ) : (
-            linkList.map((link) => {
-              const Icon = link.icon && iconMap[link.icon] ? iconMap[link.icon] : null
-              const isExternalIcon = link.icon && link.icon.startsWith("http")
-
-              return (
-                <Link
-                  key={link.id}
-                  href={link.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xl"
-                >
-                  <Card className="flex items-center p-4 hover:bg-slate-100 dark:hover:bg-slate-800 hover:scale-[1.02] transition-all cursor-pointer shadow-sm border">
-                    {Icon && <Icon className="h-5 w-5 mr-4 text-primary" />}
-                    {isExternalIcon && (
-                      <img
-                        src={link.icon}
-                        alt={`${link.title} icon`}
-                        className="h-5 w-5 mr-4 rounded-sm"
-                      />
-                    )}
-                    {/* Default icon layout if none matches */}
-                    {!Icon && !isExternalIcon && (
-                      <Globe className="h-5 w-5 mr-4 text-muted-foreground" />
-                    )}
-
-                    <span className="font-semibold">{link.title}</span>
-                  </Card>
-                </Link>
-              )
-            })
+            linkList.map((link) => (
+              <LinkCard key={link.id} link={link} />
+            ))
           )}
         </div>
       </div>

@@ -14,6 +14,14 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
+// Check if critical configuration is missing
+if (!firebaseConfig.apiKey) {
+  console.warn(
+    "Firebase API Key is missing. Please check your .env.local file. " +
+    "Refer to .env.local.example for the required environment variables."
+  );
+}
+
 // Initialize Firebase
 // Check if app is already initialized to prevent Next.js hot-reloading errors
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
