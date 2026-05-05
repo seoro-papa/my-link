@@ -91,6 +91,7 @@ export default function Page() {
               url: link.url,
               icon: link.icon,
               createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
             })
           })
           await batch.commit()
@@ -116,6 +117,7 @@ export default function Page() {
         url: values.url.trim(),
         icon,
         createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       })
 
       setIsDialogOpen(false)

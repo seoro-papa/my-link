@@ -4,6 +4,7 @@ export interface Link {
   url: string;
   icon?: string;
   createdAt?: unknown;
+  updatedAt?: unknown;
 }
 
 export const links: Link[] = [

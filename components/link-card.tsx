@@ -25,7 +25,7 @@ import {
 import { Pencil, Trash2, Globe, Check, X, Loader2 } from "lucide-react"
 import { Link as LinkType } from "@/data/links"
 import { db } from "@/lib/firebase"
-import { doc, updateDoc, deleteDoc } from "firebase/firestore"
+import { doc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore"
 import { cn } from "@/lib/utils"
 
 const formSchema = z.object({
@@ -70,6 +70,7 @@ export function LinkCard({ link }: LinkCardProps) {
         title: values.title.trim(),
         url: values.url.trim(),
         icon,
+        updatedAt: serverTimestamp(),
       })
       setIsEditing(false)
     } catch (error) {
