@@ -81,10 +81,10 @@ export default function Page() {
     const q = query(linksRef, orderBy("createdAt", "desc"))
 
     const unsubscribe = onSnapshot(q, async (querySnapshot) => {
-      const links: LinkType[] = []
-      querySnapshot.forEach((doc) => {
-        links.push({ id: doc.id, ...doc.data() } as LinkType)
-      })
+      const links = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as LinkType[]
 
       // 데이터가 아예 없는 경우 초기 데이터 마이그레이션 실행
       if (links.length === 0 && querySnapshot.metadata.fromCache === false) {
