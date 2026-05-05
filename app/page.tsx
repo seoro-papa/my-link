@@ -66,6 +66,7 @@ export default function Page() {
   const [linkList, setLinkList] = useState<LinkType[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -117,6 +118,7 @@ export default function Page() {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
+      setIsSubmitting(true)
       const parsedUrl = new URL(values.url)
       const icon = `https://www.google.com/s2/favicons?domain=${parsedUrl.hostname}&sz=64`
 
@@ -132,6 +134,8 @@ export default function Page() {
     } catch (error) {
       console.error("Error adding document: ", error)
       form.setError("url", { message: "링크를 추가하는 중 요류가 발생했습니다." })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -149,6 +153,14 @@ export default function Page() {
 
         {/* Links List */}
         <div className="w-full flex flex-col gap-4">
+          {!isLoading && (
+            <div className="flex items-center justify-end px-1 mb-[-8px]">
+              <div className="flex items-center gap-1.5 py-1 px-2 rounded-full bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800">
+                <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Live Syncing</span>
+              </div>
+            </div>
+          )}
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button
@@ -201,7 +213,16 @@ export default function Page() {
                     />
                   </div>
                   <DialogFooter>
-                    <Button type="submit" className="w-full sm:w-auto">추가하기</Button>
+                    <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitting}>
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          추가 중...
+                        </>
+                      ) : (
+                        "추가하기"
+                      )}
+                    </Button>
                   </DialogFooter>
                 </form>
               </Form>
