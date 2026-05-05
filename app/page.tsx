@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
@@ -25,8 +25,20 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { links as initialLinks, Link as LinkType } from "@/data/links"
-import { Camera, Video, Globe, Code, Briefcase, Plus } from "lucide-react"
+import { Camera, Video, Globe, Code, Briefcase, Plus, Loader2 } from "lucide-react"
 import Link from "next/link"
+import { db } from "@/lib/firebase"
+import { 
+  collection, 
+  addDoc, 
+  onSnapshot, 
+  query, 
+  orderBy, 
+  serverTimestamp,
+  getDocs,
+  writeBatch,
+  doc
+} from "firebase/firestore"
 
 const iconMap: Record<string, React.ElementType> = {
   Instagram: Camera,
@@ -51,8 +63,9 @@ const formSchema = z.object({
 })
 
 export default function Page() {
-  const [linkList, setLinkList] = useState<LinkType[]>(initialLinks)
+  const [linkList, setLinkList] = useState<LinkType[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -62,22 +75,63 @@ export default function Page() {
     },
   })
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    try {
-      const parsedUrl = new URL(values.url)
+  // Firestore 실시간 구독
+  useEffect(() => {
+    const linksRef = collection(db, "user/anonymous/links")
+    const q = query(linksRef, orderBy("createdAt", "desc"))
 
-      const newLink: LinkType = {
-        id: Date.now().toString(),
-        title: values.title.trim(),
-        url: values.url.trim(),
-        icon: `https://www.google.com/s2/favicons?domain=${parsedUrl.hostname}&sz=64`,
+    const unsubscribe = onSnapshot(q, async (querySnapshot) => {
+      const links: LinkType[] = []
+      querySnapshot.forEach((doc) => {
+        links.push({ id: doc.id, ...doc.data() } as LinkType)
+      })
+
+      // 데이터가 아예 없는 경우 초기 데이터 마이그레이션 실행
+      if (links.length === 0 && querySnapshot.metadata.fromCache === false) {
+        // 비어있는지 다시 한 번 확실히 확인 (getDocs)
+        const snapshot = await getDocs(linksRef)
+        if (snapshot.empty) {
+          console.log("초기 데이터 마이그레이션을 시작합니다...")
+          const batch = writeBatch(db)
+          initialLinks.forEach((link, index) => {
+            const newDocRef = doc(linksRef)
+            // 지연 시간을 조금씩 주어 순서 보장 (createdAt 기준)
+            batch.set(newDocRef, {
+              title: link.title,
+              url: link.url,
+              icon: link.icon,
+              createdAt: serverTimestamp(),
+            })
+          })
+          await batch.commit()
+          return // onSnapshot이 다시 호출될 것임
+        }
       }
 
-      setLinkList([newLink, ...linkList])
+      setLinkList(links)
+      setIsLoading(false)
+    })
+
+    return () => unsubscribe()
+  }, [])
+
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    try {
+      const parsedUrl = new URL(values.url)
+      const icon = `https://www.google.com/s2/favicons?domain=${parsedUrl.hostname}&sz=64`
+
+      await addDoc(collection(db, "user/anonymous/links"), {
+        title: values.title.trim(),
+        url: values.url.trim(),
+        icon,
+        createdAt: serverTimestamp(),
+      })
+
       setIsDialogOpen(false)
       form.reset()
     } catch (error) {
-      form.setError("url", { message: "유효하지 않은 URL입니다." })
+      console.error("Error adding document: ", error)
+      form.setError("url", { message: "링크를 추가하는 중 요류가 발생했습니다." })
     }
   }
 
@@ -154,37 +208,48 @@ export default function Page() {
             </DialogContent>
           </Dialog>
 
-          {linkList.map((link) => {
-            const Icon = link.icon && iconMap[link.icon] ? iconMap[link.icon] : null
-            const isExternalIcon = link.icon && link.icon.startsWith("http")
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center p-12 gap-4">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">링크를 불러오는 중입니다...</p>
+            </div>
+          ) : linkList.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-12 text-center border-2 border-dashed rounded-2xl">
+              <p className="text-sm text-muted-foreground">등록된 링크가 없습니다.<br />새로운 링크를 추가해보세요!</p>
+            </div>
+          ) : (
+            linkList.map((link) => {
+              const Icon = link.icon && iconMap[link.icon] ? iconMap[link.icon] : null
+              const isExternalIcon = link.icon && link.icon.startsWith("http")
 
-            return (
-              <Link
-                key={link.id}
-                href={link.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xl"
-              >
-                <Card className="flex items-center p-4 hover:bg-slate-100 dark:hover:bg-slate-800 hover:scale-[1.02] transition-all cursor-pointer shadow-sm border">
-                  {Icon && <Icon className="h-5 w-5 mr-4 text-primary" />}
-                  {isExternalIcon && (
-                    <img
-                      src={link.icon}
-                      alt={`${link.title} icon`}
-                      className="h-5 w-5 mr-4 rounded-sm"
-                    />
-                  )}
-                  {/* Default icon layout if none matches */}
-                  {!Icon && !isExternalIcon && (
-                    <Globe className="h-5 w-5 mr-4 text-muted-foreground" />
-                  )}
+              return (
+                <Link
+                  key={link.id}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xl"
+                >
+                  <Card className="flex items-center p-4 hover:bg-slate-100 dark:hover:bg-slate-800 hover:scale-[1.02] transition-all cursor-pointer shadow-sm border">
+                    {Icon && <Icon className="h-5 w-5 mr-4 text-primary" />}
+                    {isExternalIcon && (
+                      <img
+                        src={link.icon}
+                        alt={`${link.title} icon`}
+                        className="h-5 w-5 mr-4 rounded-sm"
+                      />
+                    )}
+                    {/* Default icon layout if none matches */}
+                    {!Icon && !isExternalIcon && (
+                      <Globe className="h-5 w-5 mr-4 text-muted-foreground" />
+                    )}
 
-                  <span className="font-semibold">{link.title}</span>
-                </Card>
-              </Link>
-            )
-          })}
+                    <span className="font-semibold">{link.title}</span>
+                  </Card>
+                </Link>
+              )
+            })
+          )}
         </div>
       </div>
     </main>
