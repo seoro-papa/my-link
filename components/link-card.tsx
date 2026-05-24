@@ -27,6 +27,7 @@ import { Link as LinkType } from "@/data/links"
 import { db } from "@/lib/firebase"
 import { doc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/components/auth-provider"
 
 const formSchema = z.object({
   title: z
@@ -47,6 +48,7 @@ interface LinkCardProps {
 }
 
 export function LinkCard({ link }: LinkCardProps) {
+  const { user } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -60,12 +62,13 @@ export function LinkCard({ link }: LinkCardProps) {
   })
 
   const onEdit = async (values: z.infer<typeof formSchema>) => {
+    if (!user) return
     try {
       setIsSubmitting(true)
       const parsedUrl = new URL(values.url)
       const icon = `https://www.google.com/s2/favicons?domain=${parsedUrl.hostname}&sz=64`
 
-      const docRef = doc(db, "users/anonymous/links", link.id)
+      const docRef = doc(db, `users/${user.uid}/links`, link.id)
       await updateDoc(docRef, {
         title: values.title.trim(),
         url: values.url.trim(),
@@ -82,9 +85,10 @@ export function LinkCard({ link }: LinkCardProps) {
   }
 
   const onDelete = async () => {
+    if (!user) return
     try {
       setIsSubmitting(true)
-      const docRef = doc(db, "users/anonymous/links", link.id)
+      const docRef = doc(db, `users/${user.uid}/links`, link.id)
       await deleteDoc(docRef)
       setIsDeleting(false)
     } catch (error) {

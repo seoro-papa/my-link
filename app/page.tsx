@@ -24,7 +24,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { links as initialLinks, Link as LinkType } from "@/data/links"
-import { Plus, Loader2 } from "lucide-react"
+import { Plus, Loader2, LogIn, Sparkles } from "lucide-react"
 import { db } from "@/lib/firebase"
 import { 
   collection, 
@@ -38,6 +38,7 @@ import {
   doc
 } from "firebase/firestore"
 import { LinkCard } from "@/components/link-card"
+import { useAuth } from "@/components/auth-provider"
 
 const formSchema = z.object({
   title: z
@@ -54,6 +55,7 @@ const formSchema = z.object({
 })
 
 export default function Page() {
+  const { user, loading: authLoading, loginWithGoogle } = useAuth()
   const [linkList, setLinkList] = useState<LinkType[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -69,7 +71,13 @@ export default function Page() {
 
   // Firestore 실시간 구독
   useEffect(() => {
-    const linksRef = collection(db, "users/anonymous/links")
+    if (!user) {
+      setIsLoading(false)
+      return
+    }
+
+    setIsLoading(true)
+    const linksRef = collection(db, `users/${user.uid}/links`)
     const q = query(linksRef, orderBy("createdAt", "desc"))
 
     const unsubscribe = onSnapshot(q, async (querySnapshot) => {
@@ -104,15 +112,17 @@ export default function Page() {
     })
 
     return () => unsubscribe()
-  }, [])
+  }, [user])
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (!user) return
+
     try {
       setIsSubmitting(true)
       const parsedUrl = new URL(values.url)
       const icon = `https://www.google.com/s2/favicons?domain=${parsedUrl.hostname}&sz=64`
 
-      await addDoc(collection(db, "users/anonymous/links"), {
+      await addDoc(collection(db, `users/${user.uid}/links`), {
         title: values.title.trim(),
         url: values.url.trim(),
         icon,
@@ -130,19 +140,78 @@ export default function Page() {
     }
   }
 
+  // 1. 인증 정보 로딩 중일 때
+  if (authLoading) {
+    return (
+      <main className="flex min-h-svh flex-col items-center justify-center p-6 bg-slate-50 dark:bg-zinc-950">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm font-medium text-slate-500 dark:text-zinc-400">
+            인증 정보를 불러오는 중입니다...
+          </p>
+        </div>
+      </main>
+    )
+  }
+
+  // 2. 비로그인 상태일 때 (설명 화면)
+  if (!user) {
+    return (
+      <main className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center p-6 bg-gradient-to-b from-slate-50 to-slate-100 dark:from-zinc-950 dark:to-zinc-900">
+        <div className="w-full max-w-md flex flex-col items-center gap-8 bg-white dark:bg-zinc-900 p-8 rounded-3xl border border-slate-200/50 dark:border-zinc-800/50 shadow-[0_20px_50px_rgba(0,0,0,0.05)] text-center animate-in fade-in slide-in-from-bottom-6 duration-500">
+          <div className="bg-primary/10 p-4 rounded-full text-primary animate-bounce">
+            <Sparkles className="h-8 w-8" />
+          </div>
+          
+          <div className="space-y-3">
+            <h2 className="text-2xl font-bold tracking-tight">나만의 링크 공간을 만드세요</h2>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              분산된 SNS, 블로그, 포트폴리오를 단 하나의 링크로 통합하여 아름답게 브랜딩하세요. 
+              로그인 후 몇 초 만에 생성할 수 있습니다.
+            </p>
+          </div>
+
+          <div className="w-full p-4 bg-slate-50 dark:bg-zinc-800/50 rounded-2xl border border-slate-100 dark:border-zinc-800 text-xs text-slate-500 dark:text-zinc-400 font-medium">
+            💡 서비스 이용을 위해서는 먼저 Google 계정으로 로그인이 필요합니다.
+          </div>
+
+          <Button
+            onClick={loginWithGoogle}
+            className="w-full h-12 rounded-2xl font-bold bg-gradient-to-r from-primary to-violet-600 text-primary-foreground shadow-lg shadow-primary/20 hover:shadow-primary/30 hover:scale-[1.01] transition-all duration-300 gap-2 border-none"
+          >
+            <LogIn className="h-4 w-4" />
+            Google 계정으로 시작하기
+          </Button>
+        </div>
+      </main>
+    )
+  }
+
+  // 3. 로그인 상태일 때 (대시보드 화면)
   return (
-    <main className="flex min-h-svh flex-col items-center justify-center p-6 bg-slate-50 dark:bg-zinc-950">
-      <div className="w-full max-w-md flex flex-col items-center gap-8">
-        {/* Profile Placeholder */}
+    <main className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-start p-6 bg-slate-50 dark:bg-zinc-950">
+      <div className="w-full max-w-md flex flex-col items-center gap-8 py-8 animate-in fade-in duration-500">
+        {/* 프로필 정보 */}
         <div className="flex flex-col items-center gap-3">
-          <div className="h-24 w-24 rounded-full bg-slate-200 dark:bg-slate-800" />
+          {user.photoURL ? (
+            <img
+              src={user.photoURL}
+              alt={user.displayName || "Profile image"}
+              className="h-24 w-24 rounded-full object-cover border-2 border-primary/20 shadow-md"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <div className="h-24 w-24 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-2xl font-bold text-slate-500 dark:text-zinc-400">
+              {user.displayName?.[0] || user.email?.[0] || "U"}
+            </div>
+          )}
           <div className="text-center">
-            <h1 className="text-xl font-bold">@messi</h1>
-            <p className="text-sm text-muted-foreground">Creator & Developer</p>
+            <h1 className="text-xl font-bold">{user.displayName || "마이링크 회원"}</h1>
+            <p className="text-sm text-muted-foreground">{user.email}</p>
           </div>
         </div>
 
-        {/* Links List */}
+        {/* 링크 리스트 */}
         <div className="w-full flex flex-col gap-4">
           {!isLoading && (
             <div className="flex items-center justify-end px-1 mb-[-8px]">
